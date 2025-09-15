@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dino Runner — Chỉ nhảy, địa hình có dốc</title>
+  <style>
+    :root{
+      --sky:#b3e5ff;
+      --ground:#ffd37d;
+      --cactus:#19c37d;
+      --hole:#1f2937;
+      --accent:#ff6b6b;
+      --ui:#0f172a;
+    }
+    html,body{
+      height:100%;margin:0;overflow:hidden;
+      background:linear-gradient(180deg,var(--sky),#d9f6ff 60%);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial
+    }
+    canvas{
+      width:100%;height:100%;display:block;
+      background:linear-gradient(180deg,var(--sky),var(--sky) 70%,var(--ground) 70%,var(--ground))
+    }
+    .hint{position:fixed;top:10px;left:0;right:0;text-align:center;color:var(--ui);font-weight:600;z-index:10}
+    .credit{position:fixed;bottom:8px;right:12px;color:#334155;font-size:12px;opacity:.75;z-index:10}
+    
+  </style>
+</head>
+<body>
+  <div id="stage">
+  <canvas id="game" width="900" height="280"></canvas>
+</div>
+
+  <div class="hint">Nhấn <span style="color:var(--accent)">Space</span> hoặc chạm để bắt đầu • Né xương rồng và ổ gà</div>
+  <div class="credit">Dino Runner — bản tươi sáng ✨</div>
+
+<script>
+(()=>{
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+
+  // === SPRITE (ảnh PNG của bạn) ===
+  const SPRITE = new Image();
+  SPRITE.src = "dino.png"; // TODO: đổi thành URL/đường dẫn ảnh của bạn
+// ---- KÍCH THƯỚC DINO (chỉ đổi ở đây) ----
+const DINO_HEIGHT = 84; // đổi số này để to/nhỏ
+let DINO_WIDTH = 44;    // sẽ tính từ tỉ lệ ảnh khi ảnh load xong
+
+function applySpriteSize(){
+  const aspect = (SPRITE.width && SPRITE.height) ? SPRITE.width / SPRITE.height : 1;
+  DINO_WIDTH = Math.round(DINO_HEIGHT * aspect);
+  dino.w = DINO_WIDTH;
+  dino.h = DINO_HEIGHT;
+  dino.y = groundYAt(dino.x) - dino.h;   // chân chạm đất
+}
+
+function onSpriteReady(){
+  applySpriteSize();
+  reset();            // chỉ reset khi ảnh đã sẵn sàng
+  draw();             // vẽ lại màn hình chờ bằng ảnh thật
+}
+
+SPRITE.onload = onSpriteReady;
+// Nếu ảnh đã cache sẵn (load cực nhanh) thì gọi luôn:
+if (SPRITE.complete) onSpriteReady();
+
+
+  // === HẰNG SỐ ===
+  const GRAVITY = 0.7;
+  const JUMP_VELOCITY = -12.5;
+  const BASE_SPEED = 6;
+
+  // Địa hình: đường cơ sở dao động quanh 78% chiều cao
+  const HILLS = {
+    amp1: 18,  len1: 600,   // sóng mượt, chu kỳ dài
+    amp2: 8,   len2: 300    // sóng phụ, chi tiết nhỏ
+  };
+
+  // === TRẠNG THÁI ===
+  let groundBase;                 // y cơ sở (phụ thuộc kích thước màn hình)
+  let scroll = 0;                 // offset cuộn thế giới
+  let worldSpeed = BASE_SPEED;
+  let tick=0, score=0;
+  let hiscore = +localStorage.getItem('dino_hiscore_v4')||0;
+  let running=false, gameOver=false;
+
+  const dino = {x:100,y:0,vy:0,w:44,h:52,onGround:false};
+  dino.h = DINO_HEIGHT;
+dino.w = DINO_WIDTH;
+
+  const obstacles=[], clouds=[];
+  function rand(a,b){return Math.random()*(b-a)+a}
+  function irand(a,b){return Math.floor(rand(a,b))}
+
+  // === ĐỊA HÌNH: y mặt đất tại toạ độ màn hình x (có tính cuộn) ===
+  function groundYAt(screenX){
+    const worldX = scroll + screenX;
+    // 2 sóng sin chồng nhau để tạo dốc mềm mại
+    const y = groundBase
+            + HILLS.amp1 * Math.sin((worldX)/HILLS.len1*2*Math.PI)
+            + HILLS.amp2 * Math.sin((worldX)/HILLS.len2*2*Math.PI + 1.2);
+    return y|0;
+  }
+
+  function reset(){
+    obstacles.length=0; clouds.length=0;
+    for(let i=0;i<4;i++) clouds.push({x:rand(cvs.width,cvs.width*2),y:rand(20,120),s:rand(0.3,0.8)});
+    worldSpeed=BASE_SPEED; tick=0; score=0; scroll=0; running=false; gameOver=false;dino.vy = 0;
+    dino.y=groundYAt(dino.x)-dino.h; dino.onGround=true;
+    draw();
+  }
+
+  function start(){ if(!running && !gameOver){ running=true; loop(); } }
+
+  function spawnObstacle(){
+    const type = Math.random()<0.6?'cactus':'hole';
+    if(type==='cactus'){
+      const count=irand(1,4),parts=[]; let totalW=0;
+      for(let i=0;i<count;i++){const w=irand(14,24),h=irand(36,64);parts.push({w,h}); totalW+=w+8;}
+      obstacles.push({type,x:cvs.width+20,parts,w:totalW,passed:false});
+    }else{
+      const w=irand(46,95);
+      obstacles.push({type,x:cvs.width+20,w,passed:false});
+    }
+  }
+
+  function loop(){
+    if(!running) return;
+    update(); draw();
+    if(!gameOver) requestAnimationFrame(loop);
+  }
+
+  function update(){
+    tick++;
+    worldSpeed = BASE_SPEED + Math.min(6,Math.floor(score/150));
+    scroll += worldSpeed;
+
+    if(tick%irand(70,110)===0) spawnObstacle();
+
+    // physics dino
+    dino.vy += GRAVITY;
+    dino.y += dino.vy;
+    const feetTarget = groundYAt(dino.x) - dino.h;
+    if(dino.y >= feetTarget){ dino.y = feetTarget; dino.vy = 0; dino.onGround = true; }
+    else dino.onGround=false;
+
+    // parallax mây
+    for(const c of clouds){
+      c.x -= worldSpeed*0.25*c.s;
+      if(c.x<-60){ c.x=cvs.width+rand(40,200); c.y=rand(20,120); }
+    }
+
+    // di chuyển chướng ngại vật theo cuộn
+    for(const ob of obstacles){ ob.x -= worldSpeed; }
+    while(obstacles.length && obstacles[0].x + (obstacles[0].w||40) < -40) obstacles.shift();
+
+    // điểm
+    score++; if(score>hiscore){ hiscore=score; localStorage.setItem('dino_hiscore_v4',hiscore); }
+
+    // va chạm
+    for(const ob of obstacles){
+      if(!ob.passed && (ob.x + (ob.w||40)) < dino.x) ob.passed=true;
+      if(hitTest(ob)){ gameOver=true; running=false; break; }
+    }
+  }
+
+  // === VA CHẠM ===
+  function hitTest(ob){
+    const dx=dino.x, dy=dino.y, dw=dino.w, dh=dino.h;
+
+    if(ob.type==='cactus'){
+      let xCursor = ob.x;
+      for(const p of ob.parts){
+        const cx = xCursor;
+        const cy = groundYAt(cx) - p.h; // đỉnh cột xương rồng bám mặt đất dốc
+        if(rectsOverlap(dx,dy,dw,dh, cx,cy,p.w,p.h)) return true;
+        xCursor += p.w + 8;
+      }
+      return false;
+    }else{
+      const hx = ob.x, hw = ob.w;
+      const hy = groundYAt(hx); // mặt đất tại vị trí hố
+      const nearGround = dino.y + dino.h > hy - 4;
+      const overlapX = (dx+dw) > hx && dx < (hx+hw);
+      return nearGround && overlapX;
+    }
+  }
+  function rectsOverlap(x1,y1,w1,h1,x2,y2,w2,h2){
+    return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+  }
+
+  // === VẼ ===
+  function drawGround(){
+    // Vẽ dải đất theo đường cong mặt đất
+    const bottom = cvs.height;
+    ctx.save();
+    ctx.fillStyle = '#f5b942';
+    ctx.beginPath();
+    ctx.moveTo(0, groundYAt(0));
+    // lấy mẫu theo bước 8px để mượt
+    for(let x=8; x<=cvs.width; x+=8){
+      ctx.lineTo(x, groundYAt(x));
+    }
+    ctx.lineTo(cvs.width, bottom);
+    ctx.lineTo(0, bottom);
+    ctx.closePath();
+    ctx.fill();
+
+    // hột cát lấm tấm
+    for(let i=0;i<50;i++){
+      ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.08})`;
+      const rx = irand(0,cvs.width);
+      const ry = irand(groundYAt(rx)+6, bottom-4);
+      ctx.fillRect(rx, ry, 2, 2);
+    }
+    ctx.restore();
+  }
+
+  function drawCloud(x,y){
+    ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.9; ctx.fillStyle='#fff';
+    blob(0,0, 18); blob(16,-6, 14); blob(30,0, 16); blob(10,6, 12);
+    ctx.restore();
+  }
+  function blob(x,y,r){ ctx.beginPath(); ctx.ellipse(x,y,r*1.2,r,0,0,Math.PI*2); ctx.fill(); }
+
+  function drawDino(){
+    const img = SPRITE;
+    // fallback nếu ảnh chưa tải xong
+    if(!img.complete || !img.width){
+      ctx.fillStyle = '#6c5ce7';
+      ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+      return;
+    }
+    const scale = Math.min(dino.w/img.width, dino.h/img.height);
+    const dw = (img.width*scale)|0, dh=(img.height*scale)|0;
+    const dx = (dino.x + (dino.w-dw)/2)|0;
+    const dy = (dino.y + (dino.h-dh))|0;
+
+    // bóng chân nhẹ
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(dino.x + dino.w/2, dino.y + dino.h + 2, Math.max(14, dino.w*0.35), 6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+
+  function drawCactus(ob){
+    let xCursor = ob.x;
+    for(const p of ob.parts){
+      const cx = xCursor;
+      const cy = groundYAt(cx) - p.h;
+      // thân
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--cactus');
+      roundRect(cx, cy, p.w, p.h, 4, ctx.fillStyle);
+      // nhánh nhỏ
+      ctx.fillStyle = '#13a66a';
+      const armH = Math.min(18, p.h*0.45);
+      ctx.fillRect(cx-6, cy + p.h*0.4, 6, armH);
+      ctx.fillRect(cx+p.w, cy + p.h*0.25, 6, armH);
+      xCursor += p.w + 8;
+    }
+  }
+
+  function drawHole(ob){
+    const hy = groundYAt(ob.x);
+    ctx.save();
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--hole');
+    ctx.beginPath();
+    ctx.ellipse(ob.x + ob.w/2, hy+8, ob.w/2, 10, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha=.2; ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(ob.x + ob.w/2, hy+6, ob.w/2.3, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r,fill){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y, x+w,y+h, r);
+    ctx.arcTo(x+w,y+h, x,y+h, r);
+    ctx.arcTo(x,y+h, x,y, r);
+    ctx.arcTo(x,y, x+w,y, r);
+    if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  }
+
+  function drawHUD(){
+    ctx.fillStyle='rgba(15,23,42,.9)';
+    ctx.font='bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+    ctx.fillText(`Điểm: ${String(score).padStart(5,'0')}`,16,28);
+    ctx.fillText(`Kỷ lục: ${String(hiscore).padStart(5,'0')}`,16,50);
+  }
+
+  function drawGameOver(){
+    ctx.save(); ctx.fillStyle='rgba(15,23,42,.9)';
+    ctx.font='700 28px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+    ctx.textAlign='center';
+    ctx.fillText('GAME OVER', cvs.width/2, cvs.height/2 - 8);
+    ctx.font='600 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+    ctx.fillText('Nhấn Space hoặc chạm để chơi lại', cvs.width/2, cvs.height/2 + 18);
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+
+    // mây
+    for(const c of clouds) drawCloud(c.x,c.y);
+
+    // đất dốc
+    drawGround();
+
+    // chướng ngại vật
+    for(const ob of obstacles){ if(ob.type==='cactus') drawCactus(ob); else drawHole(ob); }
+
+    // dino
+    drawDino();
+
+    // HUD
+    drawHUD();
+
+    if(!running && !gameOver){
+      ctx.save(); ctx.fillStyle='rgba(15,23,42,.9)'; ctx.font='700 22px system-ui'; ctx.textAlign='center';
+      ctx.fillText('Nhấn Space hoặc chạm để bắt đầu', cvs.width/2, cvs.height/2 + 6);
+      ctx.restore();
+    }
+    if(gameOver) drawGameOver();
+  }
+
+  // === ĐIỀU KHIỂN ===
+  function jump(){ start(); if(dino.onGround){ dino.vy = JUMP_VELOCITY; dino.onGround=false; } }
+
+  document.addEventListener('keydown', e=>{
+    if(e.code==='Space' || e.code==='ArrowUp'){
+      e.preventDefault();
+      if(gameOver){ reset(); start(); } else jump();
+    }
+    if(e.code==='KeyR'){ reset(); start(); }
+  });
+  cvs.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    if(gameOver){ reset(); start(); return; }
+    jump();
+  }, {passive:false});
+
+  // === RESPONSIVE ===
+  function resizeCanvas(){
+    cvs.width = window.innerWidth;
+    cvs.height = window.innerHeight;
+    groundBase = cvs.height * 0.78;
+    dino.y = groundYAt(dino.x) - dino.h;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  
+})();
+</script>
+</body>
+</html>
