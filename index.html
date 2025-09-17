@@ -5,28 +5,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Amori Runner — Order không suy Nghĩ</title>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-2L0N4MY30Y"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2L0N4MY30Y"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
 
-  gtag('config', 'G-2L0N4MY30Y');
-</script>
+    gtag('config', 'G-2L0N4MY30Y');
+  </script>
 
   <!-- Open Graph cho Facebook -->
-   <link rel="icon" type="image/png" href="https://github.com/nhihta/Amori_run/blob/main/zaloimg.jpg?raw=true">
-<meta property="og:title" content="Game Amori Runner trên AhaFood.Ai" />
-<meta property="og:description" content="Chơi game Amori Runner vui nhộn và đặt món ngay trên AhaFood.Ai!" />
-<meta property="og:image" content="https://github.com/nhihta/Amori_run/blob/main/zaloimg.jpg?raw=true" />
-<meta property="og:url" content="https://ahafood.ai/store" />
-<meta property="og:type" content="website" />
+  <link rel="icon" type="image/png" href="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true">
+  <meta property="og:title" content="Game AhaBird trên AhaFood.Ai" />
+  <meta property="og:description" content="Chơi game AhaBird vui nhộn và đặt món ngay trên AhaFood.Ai!" />
+  <meta property="og:image" content="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true" />
+  <meta property="og:url" content="https://ahafood.ai/store" />
+  <meta property="og:type" content="website" />
 
-<!-- Zalo Link Preview -->
-<meta name="zalo:image" content="https://github.com/nhihta/Amori_run/blob/main/zaloimg.jpg?raw=true" />
-<meta name="zalo:title" content="Game Amori Runner trên AhaFood.Ai" />
-<meta name="zalo:description" content="Chơi game Amori Runner vui nhộn và đặt món ngay trên AhaFood.Ai!" />
+  <!-- Zalo Link Preview -->
+  <meta name="zalo:image" content="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true" />
+  <meta name="zalo:title" content="Game AhaBird trên AhaFood.Ai" />
+  <meta name="zalo:description" content="Chơi game AhaBird vui nhộn và đặt món ngay trên AhaFood.Ai!" />
   <style>
     :root {
       --sky: #b3e5ff;
@@ -190,12 +190,14 @@
     }
 
     /* Khi màn hình ngang rộng → cho to hơn */
-@media (orientation: landscape) {
-  #startImg {
-    width: 70vw;   /* chiếm 70% chiều rộng màn hình */
-    max-width: 1200px; /* cho phép rộng hơn nếu màn hình lớn */
-  }
-}
+    @media (orientation: landscape) {
+      #startImg {
+        width: 70vw;
+        /* chiếm 70% chiều rộng màn hình */
+        max-width: 1200px;
+        /* cho phép rộng hơn nếu màn hình lớn */
+      }
+    }
 
     /* nhóm nút */
     .start-actions {
@@ -232,8 +234,9 @@
       border: 2px solid #ff7a00;
     }
 
-    .start-hidden { display: none !important; }
-
+    .start-hidden {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -243,9 +246,7 @@
   <div id="startUI" class="start-hidden">
     <div class="start-box">
       <!-- thay bằng ảnh của bạn; ảnh lớn sẽ tự co về 90vmin -->
-      <img id="startImg"
-        src="banner.jpg"
-        alt="AhaFood.Ai" />
+      <img id="startImg" src="banner.jpg" alt="AhaFood.Ai" />
       <div class="start-actions">
         <button id="btnStart" class="start-btn">Bắt đầu</button>
         <button id="btnMore" class="start-btn">Tìm hiểu thêm</button>
@@ -260,11 +261,11 @@
       <a class="promo-btn" href="https://ahafood.ai/store" target="_blank" rel="noopener">
         Thử Ngay
       </a>
-      <small style="color: red; margin-top: -8px;"> * Chạm để bắt đầu lại</small> 
+      <small style="color: red; margin-top: -8px;"> * Chạm để bắt đầu lại</small>
     </div>
-    
+
   </div>
-  
+
 
   <!-- Nút xoay màn hình -->
   <div class="hint">Nhấn <span style="color:var(--accent)">Chạm để bắt đầu</div>
@@ -274,11 +275,39 @@
     (() => {
       const cvs = document.getElementById('game');
       const ctx = cvs.getContext('2d');
+      // === ÂM THANH ===
+const bgm   = new Audio('bgm.mp3');   // nhạc nền
+bgm.loop = true;
+bgm.volume = 0.5;
+
+const sJump = new Audio('jump.mp3');  // âm thanh nhảy
+sJump.volume = 0.9;
+
+const sOver = new Audio('over.mp3');  // âm thanh thua
+
+// Tự tạm dừng khi tab bị ẩn
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) bgm.pause();
+  else if (running && !gameOver) bgm.play().catch(()=>{});
+});
+
       // Promo overlay
       const promoEl = document.getElementById('promo');
       let promoShown = false;
       function showPromo() { if (!promoShown) { promoEl.classList.remove('promo-hidden'); promoShown = true; } }
       function hidePromo() { promoEl.classList.add('promo-hidden'); promoShown = false; }
+
+      // Cho phép chạm/click vào overlay để chơi lại (trừ khi bấm nút CTA)
+      promoEl.addEventListener('click', (e) => {
+        // Nếu bấm vào nút CTA thì không reset (để mở link)
+        if (e.target.closest('.promo-btn')) return;
+
+        // Còn lại: ẩn CTA và chơi lại
+        hidePromo();
+        reset();
+        start();
+      });
+
 
 
       // === SPRITE (ảnh PNG của bạn) ===
@@ -335,7 +364,8 @@
       function hideStartUI() { startUI.classList.add('start-hidden'); }
 
       // click nút
-      btnStart.onclick = () => { startUI.classList.add('start-hidden'); };
+      btnStart.onclick = () => { start(); };
+
 
       btnMore.onclick = () => { window.open('https://ahafood.ai/store', '_blank', 'noopener'); };
 
@@ -398,6 +428,9 @@
       }
 
       function reset() {
+        bgm.pause(); bgm.currentTime = 0;
+sOver.pause(); sOver.currentTime = 0;
+
         obstacles.length = 0; clouds.length = 0;
         // sau dòng: obstacles.length=0; clouds.length=0;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }  // 🔴 dừng vòng lặp cũ nếu còn
@@ -426,12 +459,15 @@
       }
 
       function start() {
-        if (!running && !gameOver) {
-          hideStartUI();   // ẩn màn hình chờ
-          running = true;  // (phần còn lại giữ nguyên)
-          loop();
-        }
-      }
+  if (!running && !gameOver) {
+    hideStartUI();      // ẩn màn hình chờ
+    running = true;
+    bgm.currentTime = 0;
+    bgm.play().catch(()=>{});  // có thể bị chặn nếu chưa có thao tác người dùng
+    loop();
+  }
+}
+
 
 
       function spawnObstacle() {
@@ -518,6 +554,9 @@
           if (!ob.passed && (ob.x + (ob.w || 40)) < dino.x) ob.passed = true;
           if (hitTest(ob)) {
             gameOver = true;
+            bgm.pause();
+try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
+
             if (!exploding) {
               // tâm nổ tại giữa nhân vật
               spawnExplosion(dino.x + dino.w / 2, dino.y + dino.h / 2);
@@ -778,20 +817,29 @@
         // HUD
         drawHUD();
 
-        if (!running && !gameOver) {
-          if (coverReady) {
-            const iconSize = 120; // 120x120
-            const x = (cvs.width - iconSize) / 2;
-            const y = (cvs.height - iconSize) / 2;
-            ctx.drawImage(COVER, x, y, iconSize, iconSize);
-          }
-        }
+        // if (!running && !gameOver) {
+        //   if (coverReady) {
+        //     const iconSize = 120; // 120x120
+        //     const x = (cvs.width - iconSize) / 2;
+        //     const y = (cvs.height - iconSize) / 2;
+        //     ctx.drawImage(COVER, x, y, iconSize, iconSize);
+        //   }
+        // }
 
         if (gameOver) drawGameOver();
       }
 
       // === ĐIỀU KHIỂN ===
-      function jump() { start(); if (dino.onGround) { dino.vy = JUMP_VELOCITY; dino.onGround = false; } }
+      function jump() {
+  start();
+  if (dino.onGround) {
+    dino.vy = JUMP_VELOCITY;
+    dino.onGround = false;
+    sJump.currentTime = 0;
+    sJump.play().catch(()=>{});
+  }
+}
+
 
       document.addEventListener('keydown', e => {
         if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -822,7 +870,4 @@
   </script>
 </body>
 
-
 </html>
-
-
