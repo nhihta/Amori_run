@@ -43,14 +43,21 @@
       margin: 0;
       overflow: hidden;
       background: linear-gradient(180deg, var(--sky), #d9f6ff 60%);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", ;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      overscroll-behavior: none;
     }
 
     canvas {
       width: 100%;
       height: 100%;
       display: block;
-      background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground))
+      background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
+      touch-action: none;
+      /* chặn gesture gây trễ */
+
     }
 
     .hint {
@@ -268,7 +275,7 @@
 
 
   <!-- Nút xoay màn hình -->
-  <div class="hint">Nhấn <span style="color:var(--accent)">Chạm để bắt đầu</div>
+  <div class="hint" style="font-size: 13px;">Nhấn <span style="color:var(--accent);">Chạm để bắt đầu</div>
   <div class="credit">Xoay màn hình ngang để có trải nghiệm tốt nhất</div>
 
   <script>
@@ -276,20 +283,20 @@
       const cvs = document.getElementById('game');
       const ctx = cvs.getContext('2d');
       // === ÂM THANH ===
-const bgm   = new Audio('bgm.mp3');   // nhạc nền
-bgm.loop = true;
-bgm.volume = 0.5;
+      const bgm = new Audio('bgm.mp3');   // nhạc nền
+      bgm.loop = true;
+      bgm.volume = 0.5;
 
-const sJump = new Audio('jump.mp3');  // âm thanh nhảy
-sJump.volume = 0.9;
+      const sJump = new Audio('jump.mp3');  // âm thanh nhảy
+      sJump.volume = 0.9;
 
-const sOver = new Audio('over.mp3');  // âm thanh thua
+      const sOver = new Audio('over.mp3');  // âm thanh thua
 
-// Tự tạm dừng khi tab bị ẩn
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) bgm.pause();
-  else if (running && !gameOver) bgm.play().catch(()=>{});
-});
+      // Tự tạm dừng khi tab bị ẩn
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) bgm.pause();
+        else if (running && !gameOver) bgm.play().catch(() => { });
+      });
 
       // Promo overlay
       const promoEl = document.getElementById('promo');
@@ -313,6 +320,22 @@ document.addEventListener('visibilitychange', () => {
       // === SPRITE (ảnh PNG của bạn) ===
       const SPRITE = new Image();
       SPRITE.src = "dino_s.png"; // TODO: đổi thành URL/đường dẫn ảnh của bạn
+
+      // === COLLECTIBLE ICONS ===
+      const ICON_SRC = [
+        "icons/tea.png",      // trà sữa
+        "icons/noodles.png",  // tô mì
+        "icons/coffee.png",   // ly cà phê
+        "icons/pizza.png",    // bánh pizza
+        "icons/chicken-leg.png",
+        "icons/rice.png"   // gà rán
+      ];
+      const ICONS = ICON_SRC.map(src => { const im = new Image(); im.src = src; return im; });
+
+      // (tuỳ chọn) âm thanh nhặt đồ
+      const sPickup = new Audio('pickup.mp3');
+      sPickup.volume = 0.9;
+
       // ---- KÍCH THƯỚC DINO (chỉ đổi ở đây) ----
 
 
@@ -339,9 +362,10 @@ document.addEventListener('visibilitychange', () => {
 
 
       // === HẰNG SỐ ===
-      const GRAVITY = 0.7;
-      const JUMP_VELOCITY = -15.5;
-      const BASE_SPEED = 6;
+      const GRAVITY = 0.62;          // rơi chậm hơn -> dễ canh
+      const JUMP_VELOCITY = -17.5;   // bật cao & nhạy hơn
+      const BASE_SPEED = 4.6;        // tốc độ nền chậm lại
+
       // --- VỊ TRÍ DINO THEO TỈ LỆ MÀN HÌNH ---
       const DINO_X_RATIO = 0.06;   // 6% bề ngang màn hình (đổi số nếu muốn sát/tránh mép)
       const DINO_X_MIN = 20;     // không cho sát mép quá
@@ -382,7 +406,23 @@ document.addEventListener('visibilitychange', () => {
       let stars = [];
       let raindrops = [];
 
+      // === AMORI LETTERS ===
+      const LETTERS = ['A', 'M', 'O', 'R', 'I'];
+      let letterItems = [];              // các icon chữ đang bay
+      let collectedLetters = new Set();  // các chữ đã nhặt
+      let amoriCloudUntil = 0;           // timestamp ms -> hiện mây "AMORI" đến khi nào
+
+
+
+
       let rafId = null;
+      // Jump leniency
+      const COYOTE_TIME_MS = 120;
+      const JUMP_BUFFER_MS = 150;
+
+      let coyoteLeft = 0;   // thời gian còn lại được phép nhảy sau khi rời đất
+      let bufferLeft = 0;   // thời gian còn lại lệnh nhảy đã bấm sớm
+
 
       //nổ
       // --- EXPLOSION STATE ---
@@ -413,7 +453,7 @@ document.addEventListener('visibilitychange', () => {
       dino.h = DINO_HEIGHT;
       dino.w = DINO_WIDTH;
 
-      const obstacles = [], clouds = [];
+      const obstacles = [], clouds = []; const items = [];
       function rand(a, b) { return Math.random() * (b - a) + a }
       function irand(a, b) { return Math.floor(rand(a, b)) }
 
@@ -429,13 +469,18 @@ document.addEventListener('visibilitychange', () => {
 
       function reset() {
         bgm.pause(); bgm.currentTime = 0;
-sOver.pause(); sOver.currentTime = 0;
+        sOver.pause(); sOver.currentTime = 0;
 
         obstacles.length = 0; clouds.length = 0;
+        items.length = 0;
         // sau dòng: obstacles.length=0; clouds.length=0;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }  // 🔴 dừng vòng lặp cũ nếu còn
         exploding = false;            // 🔴 tắt trạng thái nổ
         particles.length = 0;         // 🔴 xóa hạt nổ
+        clouds.length = 0;
+        letterItems.length = 0;
+        collectedLetters.clear();
+        amoriCloudUntil = 0;
 
         for (let i = 0; i < 4; i++) clouds.push({ x: rand(cvs.width, cvs.width * 2), y: rand(20, 120), s: rand(0.3, 0.8) });
         worldSpeed = BASE_SPEED; tick = 0; score = 0; scroll = 0; running = false; gameOver = false; dino.vy = 0;
@@ -459,27 +504,57 @@ sOver.pause(); sOver.currentTime = 0;
       }
 
       function start() {
-  if (!running && !gameOver) {
-    hideStartUI();      // ẩn màn hình chờ
-    running = true;
-    bgm.currentTime = 0;
-    bgm.play().catch(()=>{});  // có thể bị chặn nếu chưa có thao tác người dùng
-    loop();
-  }
-}
+        if (!running && !gameOver) {
+          hideStartUI();      // ẩn màn hình chờ
+          running = true;
+          bgm.currentTime = 0;
+          bgm.play().catch(() => { });  // có thể bị chặn nếu chưa có thao tác người dùng
+          loop();
+        }
+      }
 
 
 
       function spawnObstacle() {
         const type = Math.random() < 0.6 ? 'cactus' : 'hole';
         if (type === 'cactus') {
-          const count = irand(1, 4), parts = []; let totalW = 0;
-          for (let i = 0; i < count; i++) { const w = irand(14, 24), h = irand(36, 64); parts.push({ w, h }); totalW += w + 8; }
+          const count = irand(1, 3), parts = []; let totalW = 0;
+          for (let i = 0; i < count; i++) { const w = irand(14, 22), h = irand(32, 56); parts.push({ w, h }); totalW += w + 8; }
           obstacles.push({ type, x: cvs.width + 20, parts, w: totalW, passed: false });
         } else {
-          const w = irand(46, 95);
+          const w = irand(38, 70);
           obstacles.push({ type, x: cvs.width + 20, w, passed: false });
         }
+      }
+
+      function spawnLetter() {
+        // chọn một chữ chưa có, nếu đủ rồi thì random
+        const remaining = LETTERS.filter(ch => !collectedLetters.has(ch));
+        const ch = (remaining.length ? remaining : LETTERS)[irand(0, (remaining.length ? remaining : LETTERS).length)];
+
+        // kích thước & vị trí “trên trời”
+        const size = irand(28, 40);
+        const x = cvs.width + 40;
+        const gy = groundYAt(x);
+        const maxY = Math.min(gy - 120, cvs.height * 0.55);
+        const minY = Math.max(40, cvs.height * 0.15);
+        const y = irand(minY, Math.max(minY + 1, maxY));
+
+        letterItems.push({ ch, x, y, w: size, h: size });
+      }
+
+      function spawnItem() {
+        const img = ICONS[irand(0, ICONS.length)];
+        const size = irand(28, 40);
+        const x = cvs.width + 40;
+
+        // cao trên mặt đất, “trên trời”
+        const gy = groundYAt(x);
+        const maxY = Math.min(gy - 120, cvs.height * 0.55); // không chạm đất
+        const minY = Math.max(40, cvs.height * 0.15);
+        const y = irand(minY, Math.max(minY + 1, maxY));
+
+        items.push({ img, x, y, w: size, h: size });
       }
 
       function loop() {
@@ -493,10 +568,14 @@ sOver.pause(); sOver.currentTime = 0;
 
       function update() {
         tick++;
-        worldSpeed = BASE_SPEED + Math.min(6, Math.floor(score / 150));
+        worldSpeed = BASE_SPEED + Math.min(6, Math.floor(score / 120)); // ramp chậm
+
         scroll += worldSpeed;
 
-        if (tick % irand(70, 110) === 0) spawnObstacle();
+        if (tick % irand(140, 220) === 0) spawnObstacle(); // thưa hơn
+        if (tick % irand(140, 220) === 0) spawnLetter();
+        if (tick % irand(220, 320) === 0) spawnItem();
+
 
         // physics dino
         dino.vy += GRAVITY;
@@ -504,6 +583,22 @@ sOver.pause(); sOver.currentTime = 0;
         const feetTarget = groundYAt(dino.x) - dino.h;
         if (dino.y >= feetTarget) { dino.y = feetTarget; dino.vy = 0; dino.onGround = true; }
         else dino.onGround = false;
+
+        // --- COYOTE TIME & JUMP BUFFER ---
+        if (dino.onGround) {
+          coyoteLeft = COYOTE_TIME_MS;
+        } else {
+          coyoteLeft = Math.max(0, coyoteLeft - (1000 / 60)); // 60fps approx
+        }
+
+        bufferLeft = Math.max(0, bufferLeft - (1000 / 60));
+
+        // Nếu có lệnh nhảy (buffer) và vẫn còn coyote -> nhảy ngay
+        if (bufferLeft > 0 && coyoteLeft > 0) {
+          doJump();
+          bufferLeft = 0;
+        }
+
 
         // parallax mây
         for (const c of clouds) {
@@ -514,6 +609,14 @@ sOver.pause(); sOver.currentTime = 0;
         // di chuyển chướng ngại vật theo cuộn
         for (const ob of obstacles) { ob.x -= worldSpeed; }
         while (obstacles.length && obstacles[0].x + (obstacles[0].w || 40) < -40) obstacles.shift();
+        // di chuyển các icon chữ
+        for (const it of letterItems) it.x -= worldSpeed * 0.95;
+        while (letterItems.length && letterItems[0].x + letterItems[0].w < -40) letterItems.shift();
+
+        // di chuyển collectibles
+        for (const it of items) it.x -= worldSpeed * 0.9; // bay chậm hơn tí cho dễ lượm
+        while (items.length && items[0].x + items[0].w < -40) items.shift();
+
 
         // điểm
         score++;
@@ -549,13 +652,39 @@ sOver.pause(); sOver.currentTime = 0;
             if (gameOver) showPromo();   // ✅ hiện CTA khi nổ xong
           }
         }
+        // nhặt item: +200 điểm
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i];
+          if (rectsOverlap(dino.x, dino.y, dino.w, dino.h, it.x, it.y, it.w, it.h)) {
+            score += 200;
+            try { sPickup.currentTime = 0; sPickup.play(); } catch (e) { }
+            items.splice(i, 1);
+          }
+        }
+        // ✅ NHẶT CHỮ AMORI
+        for (let i = letterItems.length - 1; i >= 0; i--) {
+          const it = letterItems[i]; // {ch, x, y, w, h}
+          if (rectsOverlap(dino.x, dino.y, dino.w, dino.h, it.x, it.y, it.w, it.h)) {
+            collectedLetters.add(it.ch);
+            score += 200;
+            try { sPickup.currentTime = 0; sPickup.play(); } catch (e) { }
+            letterItems.splice(i, 1);
+
+            // nếu đủ A M O R I -> gọi mây chữ to
+            if (LETTERS.every(c => collectedLetters.has(c))) {
+              amoriCloudUntil = performance.now() + 5000; // 5s
+              collectedLetters.clear(); // reset bộ sưu tầm cho vòng kế
+            }
+          }
+        }
+
         // va chạm
         for (const ob of obstacles) {
           if (!ob.passed && (ob.x + (ob.w || 40)) < dino.x) ob.passed = true;
           if (hitTest(ob)) {
             gameOver = true;
             bgm.pause();
-try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
+            try { sOver.currentTime = 0; sOver.play(); } catch (e) { }
 
             if (!exploding) {
               // tâm nổ tại giữa nhân vật
@@ -650,6 +779,66 @@ try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
       }
       function blob(x, y, r) { ctx.beginPath(); ctx.ellipse(x, y, r * 1.2, r, 0, 0, Math.PI * 2); ctx.fill(); }
 
+
+      function drawLetterIcon(it) {
+        // nền “mây” tròn tròn
+        ctx.save();
+        ctx.translate(it.x + it.w / 2, it.y + it.h / 2);
+        ctx.fillStyle = '#ffffff';
+        // vài “bông mây” nhỏ
+        for (let i = 0; i < 4; i++) {
+          const rx = (Math.random() * 0.4 - 0.2) * it.w;
+          const ry = (Math.random() * 0.4 - 0.2) * it.h;
+          ctx.beginPath();
+          ctx.ellipse(rx, ry, it.w * 0.28, it.h * 0.24, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // đĩa mây chính
+        ctx.beginPath();
+        ctx.ellipse(0, 0, it.w * 0.45, it.h * 0.38, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // chữ ở giữa
+        ctx.fillStyle = '#0f172a';
+        ctx.font = `bold ${Math.floor(it.h * 0.7)}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(it.ch, 0, 0);
+        ctx.restore();
+      }
+
+      function drawCloudTextAMORI() {
+        // mây chữ "AMORI" thật to ở trên trời
+        const text = 'AMORI';
+        ctx.save();
+        const cx = cvs.width / 2;
+        const cy = Math.max(60, cvs.height * 0.22);
+        const baseW = Math.min(cvs.width * 0.8, 900);
+        const fontSize = Math.max(48, Math.floor(baseW / text.length * 0.5));
+
+        // nền mây lớn (nhiều “bông” xếp lại)
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 36; i++) {
+          const ang = (i / 36) * Math.PI * 2;
+          const r = baseW * 0.38 + Math.sin(i) * 6;
+          const px = cx + Math.cos(ang) * r * 0.18;
+          const py = cy + Math.sin(ang) * r * 0.10;
+          ctx.beginPath();
+          ctx.ellipse(px, py, baseW * 0.085, fontSize * 0.42, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // chữ “AMORI”
+        ctx.fillStyle = '#0f172a';
+        ctx.font = `900 ${fontSize}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, cx, cy);
+        ctx.restore();
+      }
+
       function drawDino() {
         const img = SPRITE;
         // fallback nếu ảnh chưa tải xong
@@ -715,12 +904,56 @@ try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
         if (fill) { ctx.fillStyle = fill; ctx.fill(); }
       }
 
-      function drawHUD() {
-        ctx.fillStyle = 'rgba(15,23,42,.9)';
-        ctx.font = 'bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
-        ctx.fillText(`Điểm: ${String(score).padStart(5, '0')}`, 16, 28);
-        ctx.fillText(`Kỷ lục: ${String(hiscore).padStart(5, '0')}`, 16, 50);
+function drawHUD() {
+  ctx.fillStyle = 'rgba(15,23,42,.9)';
+  ctx.font = 'bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'right';   // căn chữ sang phải
+  const margin = 16;
+  ctx.fillText(`Điểm: ${String(score).padStart(5, '0')}`, cvs.width - margin, 28);
+  ctx.fillText(`Kỷ lục: ${String(hiscore).padStart(5, '0')}`, cvs.width - margin, 50);
+  ctx.textAlign = 'left'; // (reset lại để các chữ khác không bị ảnh hưởng)
+}
+
+
+      function drawLetterProgress() {
+        const pad = 10;
+        const boxW = 16, boxH = 20; // mỗi “ô” của 1 chữ
+        const gap = 5;
+        const totalW = LETTERS.length * boxW + (LETTERS.length - 1) * gap;
+        const x = 10;
+        const y = cvs.height - boxH - 10;
+
+        // khung mờ dưới
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x - 8, y - 8, totalW + 16, boxH + 16);
+        ctx.restore();
+
+        // từng ô chữ
+        ctx.font = 'bold 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i < LETTERS.length; i++) {
+          const ch = LETTERS[i];
+          const bx = x + i * (boxW + gap);
+
+          const owned = collectedLetters.has(ch);
+          // viền & nền ô
+          ctx.lineWidth = 2;
+          ctx.fillStyle = owned ? '#ffd966' : 'rgba(255,255,255,0.6)';
+          ctx.strokeStyle = owned ? '#f59e0b' : '#475569';
+
+          roundRect(bx, y, boxW, boxH, 8, ctx.fillStyle);
+          ctx.strokeStyle && ctx.strokeRect(bx, y, boxW, boxH);
+
+          // chữ
+          ctx.fillStyle = owned ? '#1f2937' : '#334155';
+          ctx.fillText(ch, bx + boxW / 2, y + boxH / 2);
+        }
       }
+
 
       function drawGameOver() {
         ctx.save(); ctx.fillStyle = 'rgba(15,23,42,.9)';
@@ -774,6 +1007,17 @@ try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
           ctx.stroke();
         }
       }
+      function drawItem(it) {
+        // nếu ảnh đã sẵn sàng thì vẽ ảnh; else vẽ hình tròn vàng
+        if (it.img && it.img.complete && it.img.width) {
+          ctx.drawImage(it.img, it.x, it.y, it.w, it.h);
+        } else {
+          ctx.fillStyle = '#ffd84d';
+          ctx.beginPath();
+          ctx.arc(it.x + it.w / 2, it.y + it.h / 2, it.w / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
 
       function draw() {
@@ -787,6 +1031,13 @@ try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
 
         // chướng ngại vật
         for (const ob of obstacles) { if (ob.type === 'cactus') drawCactus(ob); else drawHole(ob); }
+
+        // ✅ vẽ các icon chữ AMORI ở đây
+        for (const it of letterItems) drawLetterIcon(it);
+
+        // collectibles
+        for (const it of items) drawItem(it);
+
 
         // dino (ẩn khi đang nổ để có cảm giác tan biến)
         if (!exploding) drawDino();
@@ -812,33 +1063,33 @@ try { sOver.currentTime = 0; sOver.play(); } catch(e) {}
         // thời tiết
         drawWeather();     // ✅ thêm dòng này ở đây
 
-
-
+        // ✅ vẽ mây chữ AMORI nếu đang kích hoạt
+        if (performance.now() < amoriCloudUntil) {
+          drawCloudTextAMORI();
+        }
+        // ✅ khung tiến độ chữ (góc phải)
+        drawLetterProgress();
         // HUD
         drawHUD();
 
-        // if (!running && !gameOver) {
-        //   if (coverReady) {
-        //     const iconSize = 120; // 120x120
-        //     const x = (cvs.width - iconSize) / 2;
-        //     const y = (cvs.height - iconSize) / 2;
-        //     ctx.drawImage(COVER, x, y, iconSize, iconSize);
-        //   }
-        // }
+
 
         if (gameOver) drawGameOver();
       }
 
+      function doJump() {
+        dino.vy = JUMP_VELOCITY;
+        dino.onGround = false;
+        sJump.currentTime = 0;
+        sJump.play().catch(() => { });
+      }
+
       // === ĐIỀU KHIỂN ===
       function jump() {
-  start();
-  if (dino.onGround) {
-    dino.vy = JUMP_VELOCITY;
-    dino.onGround = false;
-    sJump.currentTime = 0;
-    sJump.play().catch(()=>{});
-  }
-}
+        start();                  // đảm bảo bắt đầu vòng lặp
+        bufferLeft = JUMP_BUFFER_MS;  // ghi nhớ lệnh nhảy
+      }
+
 
 
       document.addEventListener('keydown', e => {
