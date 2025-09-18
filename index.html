@@ -17,16 +17,16 @@
 
   <!-- Open Graph cho Facebook -->
   <link rel="icon" type="image/png" href="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true">
-  <meta property="og:title" content="Game AhaBird trên AhaFood.Ai" />
-  <meta property="og:description" content="Chơi game AhaBird vui nhộn và đặt món ngay trên AhaFood.Ai!" />
+  <meta property="og:title" content="Game Amori Runner trên AhaFood.AI" />
+  <meta property="og:description" content="Chơi game Amori Runner vui nhộn và đặt món ngay trên AhaFood.AI!" />
   <meta property="og:image" content="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true" />
   <meta property="og:url" content="https://ahafood.ai/store" />
   <meta property="og:type" content="website" />
 
   <!-- Zalo Link Preview -->
   <meta name="zalo:image" content="https://github.com/nhihta/Amori_run/blob/main/imganhzalo.png?raw=true" />
-  <meta name="zalo:title" content="Game AhaBird trên AhaFood.Ai" />
-  <meta name="zalo:description" content="Chơi game AhaBird vui nhộn và đặt món ngay trên AhaFood.Ai!" />
+  <meta name="zalo:title" content="Game Amori Runner trên AhaFood.AI" />
+  <meta name="zalo:description" content="Chơi game Amori Runner vui nhộn và đặt món ngay trên AhaFood.AI!" />
   <style>
     :root {
       --sky: #b3e5ff;
@@ -253,7 +253,7 @@
   <div id="startUI" class="start-hidden">
     <div class="start-box">
       <!-- thay bằng ảnh của bạn; ảnh lớn sẽ tự co về 90vmin -->
-      <img id="startImg" src="banner.jpg" alt="AhaFood.Ai" />
+      <img id="startImg" src="banner.jpg" alt="AhaFood.AI" />
       <div class="start-actions">
         <button id="btnStart" class="start-btn">Bắt đầu</button>
         <button id="btnMore" class="start-btn">Tìm hiểu thêm</button>
@@ -264,11 +264,14 @@
   <!-- Overlay promo khi game over -->
   <div id="promo" class="promo-hidden">
     <div class="promo-box">
-      <img src="CTA.jpg" alt="AhaFood.Ai - gợi ý món theo tâm trạng"><br>
+      <img src="CTA.jpg" alt="AhaFood.AI - gợi ý món theo tâm trạng"><br>
       <a class="promo-btn" href="https://ahafood.ai/store" target="_blank" rel="noopener">
         Thử Ngay
       </a>
-      <small style="color: red; margin-top: -8px;"> * Chạm để bắt đầu lại</small>
+      <small id="btnRestart" style="color:red; margin-top:-8px; cursor:pointer">
+  * Chạm để bắt đầu lại
+</small>
+
     </div>
 
   </div>
@@ -300,20 +303,22 @@
 
       // Promo overlay
       const promoEl = document.getElementById('promo');
+      const btnRestart = document.getElementById('btnRestart');
+if (btnRestart) {
+  btnRestart.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // không dính event overlay/CTA
+    hidePromo();
+    reset();
+    start();
+  });
+}
+
       let promoShown = false;
       function showPromo() { if (!promoShown) { promoEl.classList.remove('promo-hidden'); promoShown = true; } }
       function hidePromo() { promoEl.classList.add('promo-hidden'); promoShown = false; }
 
-      // Cho phép chạm/click vào overlay để chơi lại (trừ khi bấm nút CTA)
-      promoEl.addEventListener('click', (e) => {
-        // Nếu bấm vào nút CTA thì không reset (để mở link)
-        if (e.target.closest('.promo-btn')) return;
-
-        // Còn lại: ẩn CTA và chơi lại
-        hidePromo();
-        reset();
-        start();
-      });
+   
 
 
 
@@ -572,7 +577,7 @@
 
         scroll += worldSpeed;
 
-        if (tick % irand(140, 220) === 0) spawnObstacle(); // thưa hơn
+        if (tick % irand(80, 140) === 0) spawnObstacle(); // thưa hơn
         if (tick % irand(140, 220) === 0) spawnLetter();
         if (tick % irand(220, 320) === 0) spawnItem();
 
@@ -1099,11 +1104,12 @@ function drawHUD() {
         }
         if (e.code === 'KeyR') { reset(); start(); }
       });
-      cvs.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (gameOver) { reset(); start(); return; }
-        jump();
-      }, { passive: false });
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (gameOver) return; // chờ bấm nút trong CTA
+  jump();
+}, { passive: false });
+
 
       // === RESPONSIVE ===
       function resizeCanvas() {
