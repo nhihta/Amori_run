@@ -269,8 +269,8 @@
         Thử Ngay
       </a>
       <small id="btnRestart" style="color:red; margin-top:-8px; cursor:pointer">
-  * Chạm để bắt đầu lại
-</small>
+        * Chạm để bắt đầu lại
+      </small>
 
     </div>
 
@@ -285,6 +285,10 @@
     (() => {
       const cvs = document.getElementById('game');
       const ctx = cvs.getContext('2d');
+
+      // === BRAND COLORS ===
+      const BRAND_ORANGE = '#ff7f32'; // cam AhaFood.AI
+      const BRAND_BLUE = '#0d4073'; // xanh AhaFood.AI
       // === ÂM THANH ===
       const bgm = new Audio('bgm.mp3');   // nhạc nền
       bgm.loop = true;
@@ -304,21 +308,21 @@
       // Promo overlay
       const promoEl = document.getElementById('promo');
       const btnRestart = document.getElementById('btnRestart');
-if (btnRestart) {
-  btnRestart.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation(); // không dính event overlay/CTA
-    hidePromo();
-    reset();
-    start();
-  });
-}
+      if (btnRestart) {
+        btnRestart.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // không dính event overlay/CTA
+          hidePromo();
+          reset();
+          start();
+        });
+      }
 
       let promoShown = false;
       function showPromo() { if (!promoShown) { promoEl.classList.remove('promo-hidden'); promoShown = true; } }
       function hidePromo() { promoEl.classList.add('promo-hidden'); promoShown = false; }
 
-   
+
 
 
 
@@ -813,15 +817,20 @@ if (btnRestart) {
       }
 
       function drawCloudTextAMORI() {
-        // mây chữ "AMORI" thật to ở trên trời
-        const text = 'AMORI';
-        ctx.save();
+        const textMain = 'AMORI';
+        const textSub = 'Order không suy nghĩ';
+
         const cx = cvs.width / 2;
         const cy = Math.max(60, cvs.height * 0.22);
-        const baseW = Math.min(cvs.width * 0.8, 900);
-        const fontSize = Math.max(48, Math.floor(baseW / text.length * 0.5));
 
-        // nền mây lớn (nhiều “bông” xếp lại)
+        // kích thước chữ theo bề rộng màn hình
+        const baseW = Math.min(cvs.width * 0.8, 900);
+        const fontMain = Math.max(48, Math.floor(baseW / textMain.length * 0.5));
+        const fontSub = Math.round(fontMain * 0.42);     // nhỏ hơn hàng dưới
+        const gap = Math.round(fontMain * 0.65);     // khoảng cách giữa 2 dòng
+
+        // --- nền mây lớn (trắng tinh, không ám màu)
+        ctx.save();
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = '#ffffff';
         for (let i = 0; i < 36; i++) {
@@ -830,19 +839,35 @@ if (btnRestart) {
           const px = cx + Math.cos(ang) * r * 0.18;
           const py = cy + Math.sin(ang) * r * 0.10;
           ctx.beginPath();
-          ctx.ellipse(px, py, baseW * 0.085, fontSize * 0.42, 0, 0, Math.PI * 2);
+          ctx.ellipse(px, py, baseW * 0.085, fontMain * 0.42, 0, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.globalAlpha = 1;
+        ctx.restore();
 
-        // chữ “AMORI”
-        ctx.fillStyle = '#0f172a';
-        ctx.font = `900 ${fontSize}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+        // ——— dòng 1: AMORI (cam)
+        ctx.save();
+        ctx.fillStyle = BRAND_ORANGE;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(text, cx, cy);
+        ctx.font = `900 ${fontMain}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+
+        // viền mảnh cho rõ trên mưa/đêm
+        ctx.lineWidth = Math.max(2, Math.floor(fontMain * 0.05));
+        ctx.strokeStyle = 'rgba(15,23,42,.15)';
+        ctx.strokeText(textMain, cx, cy);
+        ctx.fillText(textMain, cx, cy);
+        ctx.restore();
+
+        // ——— dòng 2: đám mây (xanh)
+        ctx.save();
+        ctx.fillStyle = BRAND_BLUE;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `800 ${fontSub}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+        ctx.fillText(textSub, cx, cy + gap);
         ctx.restore();
       }
+
 
       function drawDino() {
         const img = SPRITE;
@@ -909,15 +934,15 @@ if (btnRestart) {
         if (fill) { ctx.fillStyle = fill; ctx.fill(); }
       }
 
-function drawHUD() {
-  ctx.fillStyle = 'rgba(15,23,42,.9)';
-  ctx.font = 'bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
-  ctx.textAlign = 'right';   // căn chữ sang phải
-  const margin = 16;
-  ctx.fillText(`Điểm: ${String(score).padStart(5, '0')}`, cvs.width - margin, 28);
-  ctx.fillText(`Kỷ lục: ${String(hiscore).padStart(5, '0')}`, cvs.width - margin, 50);
-  ctx.textAlign = 'left'; // (reset lại để các chữ khác không bị ảnh hưởng)
-}
+      function drawHUD() {
+        ctx.fillStyle = 'rgba(15,23,42,.9)';
+        ctx.font = 'bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial';
+        ctx.textAlign = 'right';   // căn chữ sang phải
+        const margin = 16;
+        ctx.fillText(`Điểm: ${String(score).padStart(5, '0')}`, cvs.width - margin, 28);
+        ctx.fillText(`Kỷ lục: ${String(hiscore).padStart(5, '0')}`, cvs.width - margin, 50);
+        ctx.textAlign = 'left'; // (reset lại để các chữ khác không bị ảnh hưởng)
+      }
 
 
       function drawLetterProgress() {
@@ -1104,11 +1129,11 @@ function drawHUD() {
         }
         if (e.code === 'KeyR') { reset(); start(); }
       });
-cvs.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (gameOver) return; // chờ bấm nút trong CTA
-  jump();
-}, { passive: false });
+      cvs.addEventListener('touchstart', e => {
+        e.preventDefault();
+        if (gameOver) return; // chờ bấm nút trong CTA
+        jump();
+      }, { passive: false });
 
 
       // === RESPONSIVE ===
