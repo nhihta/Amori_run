@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Amori Runner — Order không suy Nghĩ</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2L0N4MY30Y"></script>
@@ -35,14 +35,7 @@
       --hole: #1f2937;
       --accent: #ff6b6b;
       --ui: #0f172a;
-            /* ✅ thêm 4 dòng dưới */
-  --sat: env(safe-area-inset-top);
-  --sab: env(safe-area-inset-bottom);
-  --sal: env(safe-area-inset-left);
-  --sar: env(safe-area-inset-right);
     }
-
-
 
     html,
     body {
@@ -55,16 +48,7 @@
       -webkit-user-select: none;
       user-select: none;
       overscroll-behavior: none;
-      -webkit-text-size-adjust: 100%; /* chống Safari tự zoom */
     }
-
-    /* ✅ thêm block mới cho body để chừa tai thỏ */
-body{
-  padding-top: var(--sat);
-  padding-bottom: var(--sab);
-  padding-left: var(--sal);
-  padding-right: var(--sar);
-}
 
     canvas {
       width: 100%;
@@ -72,8 +56,6 @@ body{
       display: block;
       background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
       touch-action: none;
-      -webkit-user-select: none;
-  user-select: none;
       /* chặn gesture gây trễ */
 
     }
@@ -88,10 +70,6 @@ body{
       font-weight: 600;
       z-index: 10
     }
-
-    .hint { top: calc(10px + var(--sat)); }
-.credit { bottom: calc(8px + var(--sab)); right: calc(12px + var(--sar)); }
-
 
     .credit {
       position: fixed;
@@ -200,24 +178,22 @@ body{
       padding: 16px;
     }
 
-   .start-box{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  max-width: min(92vw, 560px);   /* ✅ khống chế bề rộng trên mobile */
-  width: 100%;
-}
+    .start-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
 
     /* Ảnh chiếm ~90% cạnh ngắn của màn hình, tự co theo xoay */
     #startImg {
-  width: 100%;
-  height: auto;
-  max-width: 1000px;                 /* giữ giới hạn ngang */
-  max-height: calc(70svh - 80px);    /* ✅ không đè nút ở dưới */
-  object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      width: 90vmin;
+      /* 90% cạnh ngắn của viewport (dọc/ ngang đều đẹp) */
+      max-width: 1000px;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
     }
 
     /* Khi màn hình ngang rộng → cho to hơn */
@@ -227,17 +203,15 @@ body{
         /* chiếm 70% chiều rộng màn hình */
         max-width: 1200px;
         /* cho phép rộng hơn nếu màn hình lớn */
-        max-height: calc(70svh - 80px);  /* ✅ vẫn theo svh */
       }
     }
 
     /* nhóm nút */
-.start-actions{
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  padding-top: 8px;
-}
+    .start-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
 
     /* nút */
     .start-btn {
@@ -248,8 +222,6 @@ body{
       padding: 10px 16px;
       border-radius: 10px;
       box-shadow: 0 6px 16px rgba(0, 0, 0, .15);
-        flex: 1 1 auto;
-  min-width: 120px;
     }
 
     /* nút Bắt đầu (cam) */
