@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
   <title>Amori Runner — Order không suy Nghĩ</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2L0N4MY30Y"></script>
@@ -50,15 +51,18 @@
       overscroll-behavior: none;
     }
 
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
-      touch-action: none;
-      /* chặn gesture gây trễ */
+canvas {
+  width: 100vw;             /* phủ hết ngang */
+  height: 100vh;            /* fallback */
+  height: 100dvh;           /* trình duyệt hiện đại */
+  height: 100lvh;           /* ✅ full tới mép, dưới cả tai thỏ */
+  display: block;
+  background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
-    }
 
     .hint {
       position: fixed;
@@ -86,44 +90,45 @@
       display: none;
     }
 
-    #promo {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, .55);
-      z-index: 9999;
-      padding: min(4vmin, 16px);
-    }
+#promo {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .55);
+  z-index: 9999;
+  padding: 0; /* ✅ không chừa mép */
+}
+
 
     /* Hộp CTA: xếp dọc ảnh + nút */
-    #promo .promo-box {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
-      text-align: center;
-      overflow: hidden;
+#promo .promo-box{
+  background: #fff;
+  border-radius: 0;          /* ✅ sát mép */
+  box-shadow: none;          /* cho thật sự full-bleed */
+  text-align: center;
+  overflow: hidden;
 
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
-      max-width: min(92vmin, 520px);
-      /* theo cạnh ngắn, giới hạn 520px */
-      max-height: 90vh;
-      /* không vượt quá chiều cao màn hình */
-    }
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  height: 100lvh;            /* ✅ full tới mép kể cả tai thỏ */
+}
+
 
     /* Ảnh KHÔNG được chiếm hết 90vh — chừa chỗ cho nút */
-    #promo img {
-      width: 100%;
-      height: auto;
-      display: block;
-      object-fit: contain;
-      max-height: calc(90vh - 80px);
-      /* ✅ chừa ~80px cho nút + khoảng cách */
-    }
+#promo img{
+  width: 100%;
+  height: 100%;        /* ✅ dùng chiều cao hộp */
+  display: block;
+  object-fit: cover;   /* phủ kín; nếu muốn không cắt thì đổi thành 'contain' */
+}
+
 
     /* Nút nằm dưới ảnh, nhỏ gọn và nền cam */
     #promo .promo-btn {
@@ -164,19 +169,18 @@
       display: none;
     }
 
-    #startUI {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5000;
-      /* nổi trên canvas */
-      pointer-events: auto;
-      background: transparent;
-      /* không phủ mờ, chỉ hiện nội dung */
-      padding: 16px;
-    }
+#startUI {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  pointer-events: auto;
+  background: transparent;
+  padding: 0; /* ✅ */
+}
+
 
     .start-box {
       display: flex;
@@ -186,15 +190,17 @@
     }
 
     /* Ảnh chiếm ~90% cạnh ngắn của màn hình, tự co theo xoay */
-    #startImg {
-      width: 90vmin;
-      /* 90% cạnh ngắn của viewport (dọc/ ngang đều đẹp) */
-      max-width: 1000px;
-      height: auto;
-      display: block;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
-    }
+#startImg{
+  width: 100vw;
+  height: calc(100lvh - 96px); /* chừa ~96px cho 2 nút; muốn phủ 100% thì đổi 100% */
+  max-width: none;
+  object-fit: cover;           /* phủ kín; muốn đủ ảnh thì đổi 'contain' */
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Landscape/dọc đều dùng full, không cần @media đặc biệt nữa */
+
 
     /* Khi màn hình ngang rộng → cho to hơn */
     @media (orientation: landscape) {
@@ -207,22 +213,28 @@
     }
 
     /* nhóm nút */
-    .start-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
+.start-actions{
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 16px;               /* sẽ nằm dưới tai thỏ; nếu muốn chui xuống dưới luôn, tăng top/bottom âm */
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 0 16px;
+}
 
     /* nút */
-    .start-btn {
-      appearance: none;
-      border: 0;
-      cursor: pointer;
-      font-weight: 700;
-      padding: 10px 16px;
-      border-radius: 10px;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, .15);
-    }
+.start-btn{
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.15);
+  min-width: 120px;
+  flex: 0 0 auto;
+}
 
     /* nút Bắt đầu (cam) */
     #btnStart {
@@ -1138,8 +1150,9 @@
 
       // === RESPONSIVE ===
       function resizeCanvas() {
-        cvs.width = window.innerWidth;
-        cvs.height = window.innerHeight;
+cvs.width  = Math.round(cvs.clientWidth);   // khớp kích thước CSS 100lvh/100vw
+cvs.height = Math.round(cvs.clientHeight);
+
         positionDinoX();
         groundBase = cvs.height * 0.78;
         dino.y = groundYAt(dino.x) - dino.h;
