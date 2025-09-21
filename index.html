@@ -3,7 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Thay dòng meta viewport hiện tại bằng dòng này -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
   <title>Amori Runner — Order không suy Nghĩ</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2L0N4MY30Y"></script>
@@ -35,51 +37,86 @@
       --hole: #1f2937;
       --accent: #ff6b6b;
       --ui: #0f172a;
+        /* Safe-area (iOS notch) */
+  --safe-top: env(safe-area-inset-top);
+  --safe-right: env(safe-area-inset-right);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
     }
 
     html,
     body {
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: linear-gradient(180deg, var(--sky), #d9f6ff 60%);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", ;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-user-select: none;
-      user-select: none;
-      overscroll-behavior: none;
+  height: 100dvh;              /* ưu tiên dynamic viewport */
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--sky), #d9f6ff 60%);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue";
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+  overscroll-behavior: none;
     }
 
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
-      touch-action: none;
-      /* chặn gesture gây trễ */
+    /* Fallback nếu trình duyệt chưa hỗ trợ 100dvh */
+@supports not (height: 100dvh){
+  html, body{ height: 100vh; }
+}
 
-    }
 
-    .hint {
-      position: fixed;
-      top: 10px;
-      left: 25px;
-      right: 0;
-      text-align: center;
-      color: var(--ui);
-      font-weight: 600;
-      z-index: 10
-    }
+   /* Canvas phủ sát mép thiết bị (edge-to-edge) */
+canvas{
+  position: fixed;
+  inset: 0;                 /* top/right/bottom/left: 0 */
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  background: linear-gradient(180deg, var(--sky), var(--sky) 70%, var(--ground) 70%, var(--ground));
+  touch-action: none;
+}
+@supports not (height: 100dvh){
+  canvas{ height: 100vh; }
+}
 
-    .credit {
-      position: fixed;
-      bottom: 8px;
-      right: 12px;
-      color: #334155;
-      font-size: 12px;
-      opacity: .75;
-      z-index: 10
-    }
+/* Các lớp UI được “đệm” khỏi vùng tai thỏ */
+.hint{
+  position: fixed;
+  top: calc(8px + var(--safe-top));
+  left: calc(16px + var(--safe-left));
+  right: calc(16px + var(--safe-right));
+  text-align: center;
+  color: var(--ui);
+  font-weight: 600;
+  z-index: 10;
+}
+
+.credit{
+  position: fixed;
+  bottom: calc(8px + var(--safe-bottom));
+  right: calc(12px + var(--safe-right));
+  color: #334155;
+  font-size: 12px;
+  opacity: .75;
+  z-index: 10;
+}
+
+/* Giảm kích thước CTA khi màn hình ngang */
+@media (orientation: landscape) {
+  #promo .promo-box {
+    width: 200px;   /* thay vì 92vmin */
+    height: 280px;  /* hạ chiều cao tổng thể */
+  }
+
+  #promo img {
+    max-height: calc(70vh - 80px); /* chừa chỗ cho nút */
+  }
+
+  #promo .promo-btn {
+    font-size: 13px;
+    margin-top: -5px;
+    padding: 6px 14px;
+    min-width: 100px;
+  }
+}
+
 
     /* === Promo overlay === */
     #promo.promo-hidden {
@@ -87,14 +124,16 @@
     }
 
     #promo {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, .55);
-      z-index: 9999;
-      padding: min(4vmin, 16px);
+  position: fixed;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+  padding:
+    max(16px, var(--safe-top))
+    max(16px, var(--safe-right))
+    max(16px, var(--safe-bottom))
+    max(16px, var(--safe-left));
     }
 
     /* Hộp CTA: xếp dọc ảnh + nút */
@@ -165,17 +204,14 @@
     }
 
     #startUI {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5000;
-      /* nổi trên canvas */
-      pointer-events: auto;
-      background: transparent;
-      /* không phủ mờ, chỉ hiện nội dung */
-      padding: 16px;
+  position: fixed; inset: 0;
+  display: flex; align-items:center; justify-content:center;
+  z-index: 5000; pointer-events:auto; background: transparent;
+  padding:
+    max(16px, var(--safe-top))
+    max(16px, var(--safe-right))
+    max(16px, var(--safe-bottom))
+    max(16px, var(--safe-left));
     }
 
     .start-box {
@@ -265,7 +301,7 @@
   <div id="promo" class="promo-hidden">
     <div class="promo-box">
       <img src="CTA.jpg" alt="AhaFood.AI - gợi ý món theo tâm trạng"><br>
-      <a class="promo-btn" href="https://ahafood.ai/store" target="_blank" rel="noopener">
+      <a class="promo-btn" href="https://bit.ly/46dGFUs" target="_blank" rel="noopener">
         Thử Ngay
       </a>
       <small id="btnRestart" style="color:red; margin-top:-8px; cursor:pointer">
@@ -328,7 +364,7 @@
 
       // === SPRITE (ảnh PNG của bạn) ===
       const SPRITE = new Image();
-      SPRITE.src = "dino_s.png"; // TODO: đổi thành URL/đường dẫn ảnh của bạn
+      SPRITE.src = "lasticon.png"; // TODO: đổi thành URL/đường dẫn ảnh của bạn
 
       // === COLLECTIBLE ICONS ===
       const ICON_SRC = [
@@ -1138,11 +1174,13 @@
 
       // === RESPONSIVE ===
       function resizeCanvas() {
-        cvs.width = window.innerWidth;
-        cvs.height = window.innerHeight;
-        positionDinoX();
-        groundBase = cvs.height * 0.78;
-        dino.y = groundYAt(dino.x) - dino.h;
+ // Với viewport-fit=cover, innerWidth/innerHeight đã là full-bleed
+  cvs.width  = window.innerWidth;
+  cvs.height = window.innerHeight;
+
+  positionDinoX();
+  groundBase = cvs.height * 0.78;
+  dino.y = groundYAt(dino.x) - dino.h;
       }
       window.addEventListener('resize', resizeCanvas);
       resizeCanvas();
